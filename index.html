@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Smart Campus Operations and Facility Booking Platform">
+    <title>Smart Campus | Operations Portal</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <main class="page-shell">
+        <header class="topbar">
+            <a class="brand" href="/" aria-label="Smart Campus home">
+                <span class="brand-mark" aria-hidden="true">SC</span>
+                <span>Smart Campus</span>
+            </a>
+            <span class="environment-tag">MVP setup</span>
+        </header>
+
+        <section class="welcome-card" aria-labelledby="welcome-title">
+            <div class="welcome-copy">
+                <p class="eyebrow">CAMPUS OPERATIONS PORTAL</p>
+                <h1 id="welcome-title">A better way to manage campus spaces.</h1>
+                <p class="intro">
+                    Find rooms and equipment, manage bookings, and keep facility
+                    requests moving in one place.
+                </p>
+                <div class="setup-note" role="status">
+                    <span class="status-dot" aria-hidden="true"></span>
+                    Stage 1 is ready. Login and booking workflows are the next stage.
+                </div>
+            </div>
+            <aside class="overview-card" aria-label="Setup status">
+                <p class="eyebrow">SYSTEM STATUS</p>
+                <div class="status-heading">
+                    <span class="status-dot" aria-hidden="true"></span>
+                    Database initialized
+                </div>
+                <p class="overview-text">
+                    Demo accounts and sample campus resources are seeded locally.
+                </p>
+                <div class="divider"></div>
+                <p class="small-label">READY FOR NEXT STAGE</p>
+                <p class="next-step">Authentication and role-based access</p>
+            </aside>
+        </section>
+
+        <footer class="page-footer">
+            <span>Smart Campus Operations</span>
+            <span>Built for a more connected campus</span>
+        </footer>
+    </main>
+</body>
+</html>

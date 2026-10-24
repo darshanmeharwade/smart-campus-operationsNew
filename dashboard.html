@@ -1,0 +1,441 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Smart Campus facility booking workspace">
+    <title>{{ "Admin" if is_admin|default(false) else "Dashboard" }} | Smart Campus</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <main class="page-shell">
+        <header class="topbar">
+            <a class="brand" href="{{ url_for('dashboard') }}" aria-label="Smart Campus dashboard">
+                <span class="brand-mark" aria-hidden="true">SC</span>
+                <span>Smart Campus</span>
+            </a>
+            <form method="post" action="{{ url_for('logout') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="secondary-button" type="submit">Sign out</button>
+            </form>
+        </header>
+
+        <section class="dashboard-card" aria-labelledby="dashboard-title">
+            <p class="eyebrow">{{ "ADMINISTRATOR WORKSPACE" if is_admin|default(false) else "CAMPUS WORKSPACE" }}</p>
+            <h1 id="dashboard-title">Hello, {{ user["name"] }}.</h1>
+            <p class="intro">
+                You are signed in as
+                <span class="role-badge">{{ user["role"]|title }}</span>.
+            </p>
+
+            {% with messages = get_flashed_messages() %}
+                {% if messages %}
+                    <div class="notice success-notice" role="status">
+                        {% for message in messages %}<p>{{ message }}</p>{% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+
+            {% if is_admin %}
+                <section class="booking-section" aria-labelledby="pending-bookings-title">
+                    <div class="section-heading">
+                        <div>
+                            <p class="eyebrow">ADMIN ACTIONS</p>
+                            <h2 id="pending-bookings-title">Pending booking requests</h2>
+                        </div>
+                    </div>
+
+                    {% if pending_bookings %}
+                        <div class="table-wrap">
+                            <table class="booking-table">
+                                <thead>
+                                    <tr>
+                                        <th scope="col">Requester</th>
+                                        <th scope="col">Facility</th>
+                                        <th scope="col">Date</th>
+                                        <th scope="col">Time</th>
+                                        <th scope="col">Purpose</th>
+                                        <th scope="col">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for booking in pending_bookings %}
+                                        <tr>
+                                            <td data-label="Requester">{{ booking["requester_name"] }}</td>
+                                            <td data-label="Facility">{{ booking["resource_name"] }}</td>
+                                            <td data-label="Date">{{ booking["booking_date"] }}</td>
+                                            <td data-label="Time">{{ booking["start_time"] }}–{{ booking["end_time"] }}</td>
+                                            <td data-label="Purpose">{{ booking["purpose"] }}</td>
+                                            <td data-label="Actions">
+                                                <div class="action-group">
+                                                    <form method="post" action="{{ url_for('approve_booking', booking_id=booking['id']) }}">
+                                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                        <button class="primary-button booking-action-button" type="submit">Approve</button>
+                                                    </form>
+                                                    <form method="post" action="{{ url_for('reject_booking', booking_id=booking['id']) }}">
+                                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                        <button class="secondary-button booking-action-button" type="submit">Reject</button>
+                                                    </form>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="empty-state">There are no pending booking requests.</div>
+                    {% endif %}
+                </section>
+
+                <section class="booking-section" aria-labelledby="analytics-title">
+                    <div class="section-heading">
+                        <div>
+                            <p class="eyebrow">CAMPUS OVERVIEW</p>
+                            <h2 id="analytics-title">Operations analytics</h2>
+                            <p class="resource-meta">
+                                Booking counts use booking date; issue counts use report creation date.
+                            </p>
+                        </div>
+                    </div>
+
+                    <form class="analytics-filter" method="get" action="{{ url_for('admin_dashboard') }}">
+                        <div class="field">
+                            <label for="analytics-date">Filter analytics by date</label>
+                            <input id="analytics-date" name="analytics_date" type="date" value="{{ analytics_date }}">
+                        </div>
+                        <button class="primary-button" type="submit">Apply filter</button>
+                        {% if analytics_date %}
+                            <a class="secondary-link" href="{{ url_for('admin_dashboard') }}">Clear date filter</a>
+                        {% endif %}
+                    </form>
+
+                    <div class="analytics-grid" aria-label="Campus totals">
+                        <article class="analytics-card">
+                            <span class="small-label">Total bookings</span>
+                            <strong>{{ booking_total }}</strong>
+                            <ul class="metric-breakdown">
+                                {% for status, count in booking_counts.items() %}
+                                    <li><span>{{ status|title }}</span><span>{{ count }}</span></li>
+                                {% endfor %}
+                            </ul>
+                        </article>
+                        <article class="analytics-card">
+                            <span class="small-label">Facility issue reports</span>
+                            <strong>{{ issue_total }}</strong>
+                            <ul class="metric-breakdown">
+                                {% for status, count in issue_status_counts.items() %}
+                                    <li><span>{{ status.replace("_", " ")|title }}</span><span>{{ count }}</span></li>
+                                {% endfor %}
+                            </ul>
+                        </article>
+                    </div>
+
+                    <div class="analytics-tables">
+                        <section class="analytics-panel" aria-labelledby="facility-analytics-title">
+                            <h3 id="facility-analytics-title">Most frequently booked facilities</h3>
+                            {% if top_facilities %}
+                                <div class="table-wrap">
+                                    <table class="booking-table">
+                                        <thead><tr><th scope="col">Facility</th><th scope="col">Approved bookings</th></tr></thead>
+                                        <tbody>
+                                            {% for facility in top_facilities %}
+                                                <tr>
+                                                    <td>{{ facility["resource_name"] }}</td>
+                                                    <td>{{ facility["booking_count"] }}</td>
+                                                </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            {% else %}
+                                <div class="empty-state">No approved bookings for this period.</div>
+                            {% endif %}
+                        </section>
+
+                        <section class="analytics-panel" aria-labelledby="category-analytics-title">
+                            <h3 id="category-analytics-title">Issue reports by category</h3>
+                            <div class="table-wrap">
+                                <table class="booking-table">
+                                    <thead><tr><th scope="col">Category</th><th scope="col">Reports</th></tr></thead>
+                                    <tbody>
+                                        {% for category, count in issue_category_counts.items() %}
+                                            <tr><td>{{ category|title }}</td><td>{{ count }}</td></tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </section>
+                    </div>
+                </section>
+            {% endif %}
+
+            <section class="booking-section" aria-labelledby="availability-title">
+                <div class="section-heading">
+                    <div>
+                        <p class="eyebrow">FACILITIES</p>
+                        <h2 id="availability-title">Find a space</h2>
+                    </div>
+                </div>
+
+                <form class="search-form" method="get" action="{{ url_for('admin_dashboard') if is_admin|default(false) else url_for('dashboard') }}">
+                    <div class="field">
+                        <label for="resource_type">Facility type</label>
+                        <select id="resource_type" name="resource_type">
+                            <option value="" {{ "selected" if not resource_type else "" }}>All facilities</option>
+                            <option value="room" {{ "selected" if resource_type == "room" else "" }}>Rooms</option>
+                            <option value="equipment" {{ "selected" if resource_type == "equipment" else "" }}>Equipment</option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label for="availability_date">Date</label>
+                        <input id="availability_date" name="date" type="date" min="{{ today }}" value="{{ availability_date }}">
+                    </div>
+                    <div class="field">
+                        <label for="search_start_time">Start time</label>
+                        <input id="search_start_time" name="start_time" type="time" value="{{ start_time }}">
+                    </div>
+                    <div class="field">
+                        <label for="search_end_time">End time</label>
+                        <input id="search_end_time" name="end_time" type="time" value="{{ end_time }}">
+                    </div>
+                    <button class="primary-button search-button" type="submit">Check availability</button>
+                </form>
+
+                {% if search_error %}
+                    <div class="notice error-notice" role="alert">{{ search_error }}</div>
+                {% endif %}
+
+                {% if resources %}
+                    <div class="resource-grid">
+                        {% for resource in resources %}
+                            <article class="resource-card">
+                                <div class="resource-card-heading">
+                                    <div>
+                                        <span class="resource-kind">{{ resource["resource_type"]|title }}</span>
+                                        <h3>{{ resource["name"] }}</h3>
+                                    </div>
+                                    {% if resource["available"] is sameas true %}
+                                        <span class="availability-badge available">Available</span>
+                                    {% elif resource["available"] is sameas false %}
+                                        <span class="availability-badge unavailable">Booked</span>
+                                    {% else %}
+                                        <span class="availability-badge unchecked">Check slot</span>
+                                    {% endif %}
+                                </div>
+                                <p class="resource-meta">{{ resource["location"] }} · Capacity {{ resource["capacity"] }}</p>
+                                <form class="booking-form" method="post" action="{{ url_for('create_booking') }}">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <input type="hidden" name="resource_id" value="{{ resource['id'] }}">
+                                    <div class="booking-fields">
+                                        <div class="field">
+                                            <label for="date-{{ resource['id'] }}">Date</label>
+                                            <input id="date-{{ resource['id'] }}" name="booking_date" type="date" min="{{ today }}" value="{{ availability_date }}" required>
+                                        </div>
+                                        <div class="field">
+                                            <label for="start-{{ resource['id'] }}">Start</label>
+                                            <input id="start-{{ resource['id'] }}" name="start_time" type="time" value="{{ start_time }}" required>
+                                        </div>
+                                        <div class="field">
+                                            <label for="end-{{ resource['id'] }}">End</label>
+                                            <input id="end-{{ resource['id'] }}" name="end_time" type="time" value="{{ end_time }}" required>
+                                        </div>
+                                    </div>
+                                    <div class="field">
+                                        <label for="purpose-{{ resource['id'] }}">Purpose</label>
+                                        <input id="purpose-{{ resource['id'] }}" name="purpose" type="text" maxlength="500" placeholder="e.g. Project team meeting" required>
+                                    </div>
+                                    <button class="primary-button" type="submit">Request booking</button>
+                                </form>
+                            </article>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="empty-state">No active facilities match this filter.</div>
+                {% endif %}
+            </section>
+
+            <section class="booking-section" aria-labelledby="bookings-title">
+                <div class="section-heading">
+                    <div>
+                        <p class="eyebrow">YOUR REQUESTS</p>
+                        <h2 id="bookings-title">My bookings</h2>
+                    </div>
+                </div>
+
+                {% if bookings %}
+                    <div class="table-wrap">
+                        <table class="booking-table">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Facility</th>
+                                    <th scope="col">Date</th>
+                                    <th scope="col">Time</th>
+                                    <th scope="col">Purpose</th>
+                                    <th scope="col">Status</th>
+                                    <th scope="col"><span class="visually-hidden">Actions</span></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for booking in bookings %}
+                                    <tr>
+                                        <td data-label="Facility">{{ booking["resource_name"] }}</td>
+                                        <td data-label="Date">{{ booking["booking_date"] }}</td>
+                                        <td data-label="Time">{{ booking["start_time"] }}–{{ booking["end_time"] }}</td>
+                                        <td data-label="Purpose">{{ booking["purpose"] }}</td>
+                                        <td data-label="Status"><span class="status-badge status-{{ booking['status'] }}">{{ booking["status"]|title }}</span></td>
+                                        <td data-label="Actions">
+                                            {% if booking["status"] in ("pending", "approved") %}
+                                                <form method="post" action="{{ url_for('cancel_booking', booking_id=booking['id']) }}">
+                                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                    <button class="text-button" type="submit">Cancel</button>
+                                                </form>
+                                            {% else %}
+                                                <span class="muted">—</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="empty-state">You have no bookings yet. Request a facility above to get started.</div>
+                {% endif %}
+            </section>
+
+            <section class="booking-section" aria-labelledby="report-issue-title">
+                <div class="section-heading">
+                    <div>
+                        <p class="eyebrow">CAMPUS OPERATIONS</p>
+                        <h2 id="report-issue-title">Report a facility issue</h2>
+                    </div>
+                </div>
+                <form class="issue-form" method="post" action="{{ url_for('submit_issue') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="field">
+                        <label for="issue-title">Title</label>
+                        <input id="issue-title" name="title" type="text" maxlength="120" required>
+                    </div>
+                    <div class="field">
+                        <label for="issue-location">Location</label>
+                        <input id="issue-location" name="location" type="text" maxlength="160" placeholder="Building and room" required>
+                    </div>
+                    <div class="field">
+                        <label for="issue-category">Category</label>
+                        <select id="issue-category" name="category" required>
+                            <option value="">Choose a category</option>
+                            <option value="electrical">Electrical</option>
+                            <option value="plumbing">Plumbing</option>
+                            <option value="furniture">Furniture</option>
+                            <option value="network">Network</option>
+                            <option value="cleaning">Cleaning</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label for="issue-description">Description</label>
+                        <textarea id="issue-description" name="description" maxlength="2000" rows="4" required></textarea>
+                    </div>
+                    <button class="primary-button" type="submit">Submit report</button>
+                </form>
+            </section>
+
+            <section class="booking-section" aria-labelledby="issues-title">
+                <div class="section-heading">
+                    <div>
+                        <p class="eyebrow">{{ "CAMPUS REPORTS" if is_admin else "YOUR REPORTS" }}</p>
+                        <h2 id="issues-title">{{ "Facility issue reports" if is_admin else "My issue reports" }}</h2>
+                    </div>
+                </div>
+                {% if issues %}
+                    <div class="table-wrap">
+                        <table class="booking-table">
+                            <thead>
+                                <tr>
+                                    {% if is_admin %}<th scope="col">Reporter</th>{% endif %}
+                                    <th scope="col">Issue</th>
+                                    <th scope="col">Location</th>
+                                    <th scope="col">Category</th>
+                                    <th scope="col">Description</th>
+                                    {% if is_admin %}<th scope="col">Triage suggestion</th>{% endif %}
+                                    <th scope="col">Status</th>
+                                    {% if is_admin %}
+                                        <th scope="col">Admin decision</th>
+                                        <th scope="col">Update status</th>
+                                    {% endif %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for issue in issues %}
+                                    <tr>
+                                        {% if is_admin %}<td data-label="Reporter">{{ issue["reporter_name"] }}</td>{% endif %}
+                                        <td data-label="Issue">{{ issue["title"] }}</td>
+                                        <td data-label="Location">{{ issue["location"] }}</td>
+                                        <td data-label="Category">{{ issue["category"]|title }}</td>
+                                        <td data-label="Description">{{ issue["description"] }}</td>
+                                        {% if is_admin %}
+                                            <td data-label="Triage suggestion">
+                                                <div class="triage-recommendation">
+                                                    <strong>{{ issue["recommended_category"]|title }} · {{ issue["recommended_priority"] }}</strong>
+                                                    <span>{{ issue["triage_reason"] }}</span>
+                                                    <small>Rule-based suggestion; review before deciding.</small>
+                                                </div>
+                                            </td>
+                                        {% endif %}
+                                        <td data-label="Status"><span class="status-badge status-{{ issue['status'] }}">{{ issue["status"].replace("_", " ")|title }}</span></td>
+                                        {% if is_admin %}
+                                            <td data-label="Admin decision">
+                                                <form class="triage-form" method="post" action="{{ url_for('confirm_issue_triage', issue_id=issue['id']) }}">
+                                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                    <label class="visually-hidden" for="admin-category-{{ issue['id'] }}">Admin-confirmed category for {{ issue["title"] }}</label>
+                                                    <select id="admin-category-{{ issue['id'] }}" name="admin_category" required>
+                                                        {% for category in ("electrical", "plumbing", "furniture", "network", "cleaning", "other") %}
+                                                            <option value="{{ category }}" {{ "selected" if (issue["admin_category"] or issue["recommended_category"]) == category else "" }}>{{ category|title }}</option>
+                                                        {% endfor %}
+                                                    </select>
+                                                    <label class="visually-hidden" for="admin-priority-{{ issue['id'] }}">Admin-confirmed priority for {{ issue["title"] }}</label>
+                                                    <select id="admin-priority-{{ issue['id'] }}" name="admin_priority" required>
+                                                        {% for priority in ("critical", "high", "medium", "low") %}
+                                                            <option value="{{ priority }}" {{ "selected" if (issue["admin_priority"] or issue["recommended_priority"]|lower) == priority else "" }}>{{ priority|title }}</option>
+                                                        {% endfor %}
+                                                    </select>
+                                                    <button class="text-button" type="submit">Save decision</button>
+                                                    {% if issue["admin_category"] and issue["admin_priority"] %}
+                                                        <small>Saved: {{ issue["admin_category"]|title }} · {{ issue["admin_priority"]|title }}</small>
+                                                    {% else %}
+                                                        <small>No admin decision saved.</small>
+                                                    {% endif %}
+                                                </form>
+                                            </td>
+                                            <td data-label="Update status">
+                                                <form class="inline-form" method="post" action="{{ url_for('update_issue_status', issue_id=issue['id']) }}">
+                                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                    <label class="visually-hidden" for="issue-status-{{ issue['id'] }}">Status for {{ issue["title"] }}</label>
+                                                    <select id="issue-status-{{ issue['id'] }}" name="status">
+                                                        <option value="open" {{ "selected" if issue["status"] == "open" else "" }}>Open</option>
+                                                        <option value="in_progress" {{ "selected" if issue["status"] == "in_progress" else "" }}>In Progress</option>
+                                                        <option value="resolved" {{ "selected" if issue["status"] == "resolved" else "" }}>Resolved</option>
+                                                    </select>
+                                                    <button class="text-button" type="submit">Save</button>
+                                                </form>
+                                            </td>
+                                        {% endif %}
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="empty-state">{{ "No facility issue reports have been submitted." if is_admin else "You have not submitted any issue reports yet." }}</div>
+                {% endif %}
+            </section>
+        </section>
+
+        <footer class="page-footer">
+            <span>Smart Campus Operations</span>
+            <span>Signed in as {{ user["email"] }}</span>
+        </footer>
+    </main>
+</body>
+</html>

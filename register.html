@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Create a student account for the Smart Campus Operations Portal">
+    <title>Create Student Account | Smart Campus</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <main class="page-shell">
+        <header class="topbar">
+            <a class="brand" href="/" aria-label="Smart Campus home">
+                <span class="brand-mark" aria-hidden="true">SC</span>
+                <span>Smart Campus</span>
+            </a>
+            <span class="environment-tag">Campus portal</span>
+        </header>
+
+        <section class="welcome-card login-layout" aria-labelledby="welcome-title">
+            <div class="welcome-copy">
+                <p class="eyebrow">CAMPUS OPERATIONS PORTAL</p>
+                <h1 id="welcome-title">Create your student account.</h1>
+                <p class="intro">
+                    Register to browse facilities, request bookings, and manage
+                    your own campus activity.
+                </p>
+                <div class="setup-note">
+                    <span class="status-dot" aria-hidden="true"></span>
+                    Student access is assigned automatically.
+                </div>
+            </div>
+
+            <section class="login-card" aria-labelledby="register-title">
+                <p class="eyebrow">STUDENT ACCOUNT</p>
+                <h2 id="register-title">Sign up</h2>
+
+                {% if error %}
+                    <div class="notice error-notice" role="alert">{{ error }}</div>
+                {% endif %}
+
+                <form method="post" action="{{ url_for('register_student') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <label for="name">Name</label>
+                    <input
+                        id="name"
+                        name="name"
+                        type="text"
+                        autocomplete="name"
+                        maxlength="100"
+                        value="{{ name }}"
+                        required
+                    >
+
+                    <label for="email">Email or username</label>
+                    <input
+                        id="email"
+                        name="email"
+                        type="text"
+                        autocomplete="username"
+                        maxlength="254"
+                        value="{{ email }}"
+                        required
+                    >
+
+                    <label for="password">Password (at least 8 characters)</label>
+                    <input
+                        id="password"
+                        name="password"
+                        type="password"
+                        autocomplete="new-password"
+                        minlength="8"
+                        maxlength="1024"
+                        required
+                    >
+
+                    <button class="primary-button" type="submit">Create Student Account</button>
+                </form>
+                <p class="login-hint">
+                    Already registered? <a href="{{ url_for('login') }}">Login</a>
+                </p>
+            </section>
+        </section>
+
+        <footer class="page-footer">
+            <span>Smart Campus Operations</span>
+            <span>Built for a more connected campus</span>
+        </footer>
+    </main>
+</body>
+</html>
